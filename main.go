@@ -3,9 +3,14 @@ package main
 import (
 	"fmt"
 	"log"
+	"io"
 	"net/http"
 
 	"github.com/PuerkitoBio/goquery"
+)
+
+const (
+	URL = "https://wikiwiki.jp/splatoon3mix/"
 )
 
 func main() {
@@ -15,17 +20,12 @@ func main() {
 }
 
 func Main() error {
-	res, err := http.Get("https://wikiwiki.jp/splatoon3mix/")
+	body, err := fetch(URL)
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
 
-	if res.StatusCode != 200 {
-		return fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
-	}
-
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	doc, err := goquery.NewDocumentFromReader(body)
 	if err != nil {
 		return err
 	}
@@ -43,4 +43,18 @@ func Main() error {
 		})
 	})
 	return nil
+}
+
+
+func fetch(url string) (io.Reader, error){
+	res, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode != 200 {
+		return nil, fmt.Errorf("status code error: %d %s", res.StatusCode, res.Status)
+	}
+
+	return res.Body, nil
 }
