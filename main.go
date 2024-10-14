@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"io"
+	"strings"
 	"net/http"
 
 	"github.com/PuerkitoBio/goquery"
@@ -25,7 +26,7 @@ func Main() error {
 		return err
 	}
 
-	return extract(body, nil)
+	return extract(body, []string{"ステージ"})
 }
 
 
@@ -51,15 +52,26 @@ func extract(reader io.Reader, targets []string) error {
 	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
 		group := s.Find("span.navfold-summary-label").Text()
 
-		s.Find("li").Each(func(j int, li *goquery.Selection) {
-			li.Find("a").Each(func(k int, a *goquery.Selection) {
-				name := a.Text()
-				link, exists := a.Attr("href")
-				if exists {
-					fmt.Printf("group = %s, name = %s, link = %s\n", group, name, link)
-				}
+		if contains(targets, group) {
+			s.Find("li").Each(func(j int, li *goquery.Selection) {
+				li.Find("a").Each(func(k int, a *goquery.Selection) {
+					name := a.Text()
+					link, exists := a.Attr("href")
+					if exists {
+						fmt.Printf("group = %s, name = %s, link = %s\n", group, name, link)
+					}
+				})
 			})
-		})
+			}
 	})
 	return nil 
+}
+
+func contains(targets []string, s string) bool {
+	for _, target := range targets {
+		if strings.Contains(target, s) {
+			return true
+		}
+	}
+	return false
 }
