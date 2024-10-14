@@ -25,24 +25,7 @@ func Main() error {
 		return err
 	}
 
-	doc, err := goquery.NewDocumentFromReader(body)
-	if err != nil {
-		return err
-	}
-
-	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
-		group := s.Find("span.navfold-summary-label").Text()
-		s.Find("li").Each(func(j int, li *goquery.Selection) {
-			li.Find("a").Each(func(k int, a *goquery.Selection) {
-				name := a.Text()
-				link, exists := a.Attr("href")
-				if exists {
-					fmt.Printf("group = %s, name = %s, link = %s\n", group, name, link)
-				}
-			})
-		})
-	})
-	return nil
+	return extract(body, nil)
 }
 
 
@@ -57,4 +40,26 @@ func fetch(url string) (io.Reader, error){
 	}
 
 	return res.Body, nil
+}
+
+func extract(reader io.Reader, targets []string) error {
+	doc, err := goquery.NewDocumentFromReader(reader)
+	if err != nil {
+		return err
+	}
+
+	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
+		group := s.Find("span.navfold-summary-label").Text()
+
+		s.Find("li").Each(func(j int, li *goquery.Selection) {
+			li.Find("a").Each(func(k int, a *goquery.Selection) {
+				name := a.Text()
+				link, exists := a.Attr("href")
+				if exists {
+					fmt.Printf("group = %s, name = %s, link = %s\n", group, name, link)
+				}
+			})
+		})
+	})
+	return nil 
 }
