@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	URL = "https://wikiwiki.jp/splatoon3mix/"
+	baseURL = "https://wikiwiki.jp/splatoon3mix/"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 }
 
 func Main() error {
-	body, err := fetch(URL)
+	body, err := fetch(baseURL)
 	if err != nil {
 		return err
 	}
