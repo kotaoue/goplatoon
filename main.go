@@ -26,7 +26,7 @@ func Main() error {
 		return err
 	}
 
-	return extract(body, []string{"ステージ"})
+	return extract(body, []string{"ステージ一覧"})
 }
 
 
@@ -51,14 +51,16 @@ func extract(reader io.Reader, targets []string) error {
 
 	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
 		group := s.Find("span.navfold-summary-label").Text()
+		// fmt.Println(group)
 
 		if contains(targets, group) {
 			s.Find("li").Each(func(j int, li *goquery.Selection) {
 				li.Find("a").Each(func(k int, a *goquery.Selection) {
 					name := a.Text()
-					link, exists := a.Attr("href")
+					_, exists := a.Attr("href")
 					if exists {
-						fmt.Printf("group = %s, name = %s, link = %s\n", group, name, link)
+						// fmt.Printf("%s, %s\n", name, link)
+						fmt.Printf("%s\n", name)
 					}
 				})
 			})
