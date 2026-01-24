@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"io"
-	"strings"
+	"log"
 	"net/http"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -66,7 +66,7 @@ func extract(reader io.Reader, targets []string) error {
 			})
 			}
 	})
-	return nil 
+	return nil
 }
 
 func contains(targets []string, s string) bool {
