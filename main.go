@@ -21,14 +21,17 @@ func main() {
 }
 
 func Main() error {
-	body, err := fetch(baseURL)
+	stages, err := fetchStages()
 	if err != nil {
 		return err
 	}
 
-	return extract(body, []string{"ステージ一覧"})
-}
+	for _, stage := range stages {
+		fmt.Println(stage)
+	}
 
+	return nil
+}
 
 func fetch(url string) (io.Reader, error){
 	res, err := http.Get(url)
@@ -43,28 +46,39 @@ func fetch(url string) (io.Reader, error){
 	return res.Body, nil
 }
 
-func extract(reader io.Reader, targets []string) error {
+func fetchStages() ([]string, error) {
+	body, err := fetch(baseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractStages(body)
+}
+
+func extractStages(reader io.Reader) ([]string, error) {
 	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	var stages []string
 
 	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
 		group := s.Find("span.navfold-summary-label").Text()
 
-		if contains(targets, group) {
+		if contains([]string{"ステージ一覧"}, group) {
 			s.Find("li").Each(func(j int, li *goquery.Selection) {
 				li.Find("a").Each(func(k int, a *goquery.Selection) {
 					name := a.Text()
 					_, exists := a.Attr("href")
 					if exists {
-						fmt.Printf("%s\n", name)
+						stages = append(stages, name)
 					}
 				})
 			})
-			}
+		}
 	})
-	return nil
+	return stages, nil
 }
 
 func contains(targets []string, s string) bool {
