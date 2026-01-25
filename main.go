@@ -51,7 +51,6 @@ func extract(reader io.Reader, targets []string) error {
 
 	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
 		group := s.Find("span.navfold-summary-label").Text()
-		// fmt.Println(group)
 
 		if contains(targets, group) {
 			s.Find("li").Each(func(j int, li *goquery.Selection) {
@@ -59,7 +58,6 @@ func extract(reader io.Reader, targets []string) error {
 					name := a.Text()
 					_, exists := a.Attr("href")
 					if exists {
-						// fmt.Printf("%s, %s\n", name, link)
 						fmt.Printf("%s\n", name)
 					}
 				})
