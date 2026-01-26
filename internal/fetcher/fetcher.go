@@ -94,6 +94,38 @@ func extractSubWeapons(reader io.Reader) ([]string, error) {
 	return subWeapons, nil
 }
 
+func FetchSpecialWeapons() ([]string, error) {
+	body, err := Fetch(BaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractSpecialWeapons(body)
+}
+
+func extractSpecialWeapons(reader io.Reader) ([]string, error) {
+	doc, err := goquery.NewDocumentFromReader(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	var specialWeapons []string
+
+	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
+		label := s.Find("span.navfold-summary-label").Text()
+
+		if strings.Contains(label, "スペシャルウェポン") {
+			s.Find("div.navfold-content li a").Each(func(j int, a *goquery.Selection) {
+				name := a.Text()
+				if name != "スペシャルウェポン" {
+					specialWeapons = append(specialWeapons, name)
+				}
+			})
+		}
+	})
+	return specialWeapons, nil
+}
+
 func contains(targets []string, s string) bool {
 	for _, target := range targets {
 		if strings.Contains(target, s) {
