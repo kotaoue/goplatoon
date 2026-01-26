@@ -43,19 +43,20 @@ func extractStages(reader io.Reader) ([]string, error) {
 
 	var stages []string
 
-	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
-		group := s.Find("span.navfold-summary-label").Text()
-
-		if contains([]string{"ステージ一覧"}, group) {
-			s.Find("li").Each(func(j int, li *goquery.Selection) {
-				li.Find("a").Each(func(k int, a *goquery.Selection) {
-					name := a.Text()
-					_, exists := a.Attr("href")
-					if exists {
-						stages = append(stages, name)
-					}
-				})
-			})
+	doc.Find("h4").Each(func(i int, h4 *goquery.Selection) {
+		if strings.Contains(h4.Text(), "ステージ") {
+			navfold := h4.Next()
+			if navfold.HasClass("navfold-container") {
+				label := navfold.Find("span.navfold-summary-label").Text()
+				if strings.Contains(label, "ステージ一覧") {
+					navfold.Find("div.navfold-content li a").Each(func(j int, a *goquery.Selection) {
+						name := a.Text()
+						if name != "概要" && name != "面積あれこれ"{
+							stages = append(stages, name)
+						}
+					})
+				}
+			}
 		}
 	})
 	return stages, nil
