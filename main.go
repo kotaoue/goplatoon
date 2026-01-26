@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 
@@ -14,13 +15,27 @@ func main() {
 }
 
 func Main() error {
-	stages, err := fetcher.FetchStages()
+	mode := flag.String("mode", "stage", "fetch mode: stage or sub")
+	flag.Parse()
+
+	switch *mode {
+	case "stage":
+		return fetchAndPrint(fetcher.FetchStages)
+	case "sub":
+		return fetchAndPrint(fetcher.FetchSubWeapons)
+	default:
+		return fmt.Errorf("invalid mode: %s (must be 'stage' or 'sub')", *mode)
+	}
+}
+
+func fetchAndPrint(fetchFunc func() ([]string, error)) error {
+	items, err := fetchFunc()
 	if err != nil {
 		return err
 	}
 
-	for _, stage := range stages {
-		fmt.Println(stage)
+	for _, item := range items {
+		fmt.Println(item)
 	}
 
 	return nil
