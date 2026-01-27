@@ -15,18 +15,20 @@ func main() {
 }
 
 func Main() error {
-	mode := flag.String("mode", "stage", "fetch mode: stage, sub or sp")
+	mode := flag.String("mode", "main", "fetch mode: main, sub, sp or stage")
 	flag.Parse()
 
 	switch *mode {
-	case "stage":
-		return fetchAndPrint(fetcher.FetchStages)
+	case "main":
+		return fetchAndPrint(fetcher.FetchMainWeapons)
 	case "sub":
 		return fetchAndPrint(fetcher.FetchSubWeapons)
 	case "sp":
 		return fetchAndPrint(fetcher.FetchSpecialWeapons)
+	case "stage":
+		return fetchAndPrint(fetcher.FetchStages)
 	default:
-		return fmt.Errorf("invalid mode: %s (must be 'stage', 'sub' or 'sp')", *mode)
+		return fmt.Errorf("invalid mode: %s (must be 'main', 'sub', 'sp' or 'stage')", *mode)
 	}
 }
 

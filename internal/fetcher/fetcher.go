@@ -126,6 +126,47 @@ func extractSpecialWeapons(reader io.Reader) ([]string, error) {
 	return specialWeapons, nil
 }
 
+func FetchMainWeapons() ([]string, error) {
+	body, err := Fetch(BaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	return extractMainWeapons(body)
+}
+
+func extractMainWeapons(reader io.Reader) ([]string, error) {
+	doc, err := goquery.NewDocumentFromReader(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	var mainWeapons []string
+	weaponTypes := []string{"シューター", "ローラー", "チャージャー", "スロッシャー", "スピナー", "マニューバー", "シェルター", "ブラスター", "フデ", "ストリンガー", "ワイパー"}
+
+	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
+		label := s.Find("span.navfold-summary-label").Text()
+
+		for _, weaponType := range weaponTypes {
+			if strings.Contains(label, weaponType) {
+				s.Find("div.navfold-content li a").Each(func(j int, a *goquery.Selection) {
+					title, exists := a.Attr("title")
+					if exists && strings.HasPrefix(title, "ブキ/") {
+						// "ブキ/"を除外
+						weaponName := strings.TrimPrefix(title, "ブキ/")
+						// "○○属"のような概要ページは除外
+						if !strings.HasSuffix(weaponName, "属") {
+							mainWeapons = append(mainWeapons, weaponName)
+						}
+					}
+				})
+				break
+			}
+		}
+	})
+	return mainWeapons, nil
+}
+
 func contains(targets []string, s string) bool {
 	for _, target := range targets {
 		if strings.Contains(target, s) {
