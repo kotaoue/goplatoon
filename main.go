@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	mode string
+	target string
 )
 
 var rootCmd = &cobra.Command{
@@ -17,7 +17,7 @@ var rootCmd = &cobra.Command{
 	Short: "Splatoon 3 data fetcher",
 	Long:  "A CLI tool to fetch Splatoon 3 data from wikiwiki.jp/splatoon3mix",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		switch mode {
+		switch target {
 		case "main":
 			return fetchAndPrint(fetcher.FetchMainWeapons)
 		case "sub":
@@ -27,7 +27,7 @@ var rootCmd = &cobra.Command{
 		case "stage":
 			return fetchAndPrint(fetcher.FetchStages)
 		default:
-			return fmt.Errorf("invalid mode: %s (must be 'main', 'sub', 'sp' or 'stage')", mode)
+			return fmt.Errorf("invalid target: %s (must be 'main', 'sub', 'sp' or 'stage')", target)
 		}
 	},
 }
@@ -65,7 +65,7 @@ var stageCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&mode, "mode", "m", "main", "fetch mode: main, sub, sp or stage")
+	rootCmd.PersistentFlags().StringVarP(&target, "target", "t", "main", "fetch target: main, sub, sp or stage")
 	rootCmd.AddCommand(mainCmd)
 	rootCmd.AddCommand(subCmd)
 	rootCmd.AddCommand(spCmd)
