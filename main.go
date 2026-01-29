@@ -1,34 +1,80 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/kotaoue/goplatoon/internal/fetcher"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	if err := Main(); err != nil {
-		log.Fatal(err)
-	}
+var (
+	mode string
+)
+
+var rootCmd = &cobra.Command{
+	Use:   "goplatoon",
+	Short: "Splatoon 3 data fetcher",
+	Long:  "A CLI tool to fetch Splatoon 3 data from wikiwiki.jp/splatoon3mix",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		switch mode {
+		case "main":
+			return fetchAndPrint(fetcher.FetchMainWeapons)
+		case "sub":
+			return fetchAndPrint(fetcher.FetchSubWeapons)
+		case "sp":
+			return fetchAndPrint(fetcher.FetchSpecialWeapons)
+		case "stage":
+			return fetchAndPrint(fetcher.FetchStages)
+		default:
+			return fmt.Errorf("invalid mode: %s (must be 'main', 'sub', 'sp' or 'stage')", mode)
+		}
+	},
 }
 
-func Main() error {
-	mode := flag.String("mode", "main", "fetch mode: main, sub, sp or stage")
-	flag.Parse()
-
-	switch *mode {
-	case "main":
+var mainCmd = &cobra.Command{
+	Use:   "main",
+	Short: "Fetch main weapons",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		return fetchAndPrint(fetcher.FetchMainWeapons)
-	case "sub":
+	},
+}
+
+var subCmd = &cobra.Command{
+	Use:   "sub",
+	Short: "Fetch sub weapons",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		return fetchAndPrint(fetcher.FetchSubWeapons)
-	case "sp":
+	},
+}
+
+var spCmd = &cobra.Command{
+	Use:   "sp",
+	Short: "Fetch special weapons",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		return fetchAndPrint(fetcher.FetchSpecialWeapons)
-	case "stage":
+	},
+}
+
+var stageCmd = &cobra.Command{
+	Use:   "stage",
+	Short: "Fetch stages",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		return fetchAndPrint(fetcher.FetchStages)
-	default:
-		return fmt.Errorf("invalid mode: %s (must be 'main', 'sub', 'sp' or 'stage')", *mode)
+	},
+}
+
+func init() {
+	rootCmd.PersistentFlags().StringVarP(&mode, "mode", "m", "main", "fetch mode: main, sub, sp or stage")
+	rootCmd.AddCommand(mainCmd)
+	rootCmd.AddCommand(subCmd)
+	rootCmd.AddCommand(spCmd)
+	rootCmd.AddCommand(stageCmd)
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(1)
 	}
 }
 
