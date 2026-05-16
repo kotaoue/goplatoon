@@ -64,12 +64,21 @@ var stageCmd = &cobra.Command{
 	},
 }
 
+var specCmd = &cobra.Command{
+	Use:   "spec",
+	Short: "Fetch main weapon detailed specs (weight class, range, fire rate, etc.)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return fetchAndPrintSpecs(fetcher.FetchMainWeaponSpecs)
+	},
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&target, "target", "t", "main", "fetch target: main, sub, sp or stage")
 	rootCmd.AddCommand(mainCmd)
 	rootCmd.AddCommand(subCmd)
 	rootCmd.AddCommand(spCmd)
 	rootCmd.AddCommand(stageCmd)
+	rootCmd.AddCommand(specCmd)
 }
 
 func main() {
@@ -86,6 +95,22 @@ func fetchAndPrint(fetchFunc func() ([]string, error)) error {
 
 	for _, item := range items {
 		fmt.Println(item)
+	}
+
+	return nil
+}
+
+func fetchAndPrintSpecs(fetchFunc func() ([]fetcher.WeaponSpec, error)) error {
+	specs, err := fetchFunc()
+	if err != nil {
+		return err
+	}
+
+	for i, spec := range specs {
+		if i > 0 {
+			fmt.Println()
+		}
+		fmt.Println(spec)
 	}
 
 	return nil
