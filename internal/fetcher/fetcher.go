@@ -9,7 +9,9 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var BaseURL = "https://wikiwiki.jp/splatoon3mix/"
+const (
+	BaseURL = "https://wikiwiki.jp/splatoon3mix/"
+)
 
 func Fetch(url string) (io.Reader, error) {
 	res, err := http.Get(url)
