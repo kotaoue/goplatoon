@@ -1,6 +1,8 @@
 package fetcher
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -194,6 +196,258 @@ func TestContains(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("contains(%v, %q) = %v, want %v", targets, tt.s, got, tt.want)
 		}
+	}
+}
+
+func TestFetch_Success(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("<html><body>hello</body></html>"))
+	}))
+	defer ts.Close()
+
+	reader, err := Fetch(ts.URL)
+	if err != nil {
+		t.Fatalf("Fetch returned error: %v", err)
+	}
+	if reader == nil {
+		t.Fatal("Fetch returned nil reader")
+	}
+}
+
+func TestFetch_NonOKStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer ts.Close()
+
+	_, err := Fetch(ts.URL)
+	if err == nil {
+		t.Fatal("expected error for non-200 status, got nil")
+	}
+}
+
+func TestFetch_NetworkError(t *testing.T) {
+	_, err := Fetch("http://127.0.0.1:0/invalid")
+	if err == nil {
+		t.Fatal("expected error for invalid URL, got nil")
+	}
+}
+
+func newMockServer(t *testing.T, html string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(html))
+	}))
+}
+
+func TestFetchStages(t *testing.T) {
+	html := `<html><body>
+<h4>ステージ</h4>
+<div class="navfold-container">
+  <span class="navfold-summary-label">ステージ一覧</span>
+  <div class="navfold-content">
+    <ul>
+      <li><a href="/stage1">バンカラストリート</a></li>
+    </ul>
+  </div>
+</div>
+</body></html>`
+	ts := newMockServer(t, html)
+	defer ts.Close()
+
+	orig := BaseURL
+	BaseURL = ts.URL
+	defer func() { BaseURL = orig }()
+
+	stages, err := FetchStages()
+	if err != nil {
+		t.Fatalf("FetchStages returned error: %v", err)
+	}
+	if len(stages) != 1 || stages[0] != "バンカラストリート" {
+		t.Errorf("unexpected stages: %v", stages)
+	}
+}
+
+func TestFetchStages_Error(t *testing.T) {
+	orig := BaseURL
+	BaseURL = "http://127.0.0.1:0/invalid"
+	defer func() { BaseURL = orig }()
+
+	_, err := FetchStages()
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFetchSubWeapons(t *testing.T) {
+	html := `<html><body>
+<div class="navfold-container clearfix">
+  <span class="navfold-summary-label">サブウェポン一覧</span>
+  <div class="navfold-content">
+    <ul>
+      <li><a href="/sub1">スプラッシュボム</a></li>
+    </ul>
+  </div>
+</div>
+</body></html>`
+	ts := newMockServer(t, html)
+	defer ts.Close()
+
+	orig := BaseURL
+	BaseURL = ts.URL
+	defer func() { BaseURL = orig }()
+
+	subs, err := FetchSubWeapons()
+	if err != nil {
+		t.Fatalf("FetchSubWeapons returned error: %v", err)
+	}
+	if len(subs) != 1 || subs[0] != "スプラッシュボム" {
+		t.Errorf("unexpected sub weapons: %v", subs)
+	}
+}
+
+func TestFetchSubWeapons_Error(t *testing.T) {
+	orig := BaseURL
+	BaseURL = "http://127.0.0.1:0/invalid"
+	defer func() { BaseURL = orig }()
+
+	_, err := FetchSubWeapons()
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFetchSpecialWeapons(t *testing.T) {
+	html := `<html><body>
+<div class="navfold-container clearfix">
+  <span class="navfold-summary-label">スペシャルウェポン一覧</span>
+  <div class="navfold-content">
+    <ul>
+      <li><a href="/sp1">ウルトラショット</a></li>
+    </ul>
+  </div>
+</div>
+</body></html>`
+	ts := newMockServer(t, html)
+	defer ts.Close()
+
+	orig := BaseURL
+	BaseURL = ts.URL
+	defer func() { BaseURL = orig }()
+
+	specials, err := FetchSpecialWeapons()
+	if err != nil {
+		t.Fatalf("FetchSpecialWeapons returned error: %v", err)
+	}
+	if len(specials) != 1 || specials[0] != "ウルトラショット" {
+		t.Errorf("unexpected special weapons: %v", specials)
+	}
+}
+
+func TestFetchSpecialWeapons_Error(t *testing.T) {
+	orig := BaseURL
+	BaseURL = "http://127.0.0.1:0/invalid"
+	defer func() { BaseURL = orig }()
+
+	_, err := FetchSpecialWeapons()
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestFetchMainWeapons(t *testing.T) {
+	html := `<html><body>
+<div class="navfold-container clearfix">
+  <span class="navfold-summary-label">シューター</span>
+  <div class="navfold-content">
+    <ul>
+      <li><a href="/w1" title="ブキ/わかばシューター">わかばシューター</a></li>
+    </ul>
+  </div>
+</div>
+</body></html>`
+	ts := newMockServer(t, html)
+	defer ts.Close()
+
+	orig := BaseURL
+	BaseURL = ts.URL
+	defer func() { BaseURL = orig }()
+
+	mains, err := FetchMainWeapons()
+	if err != nil {
+		t.Fatalf("FetchMainWeapons returned error: %v", err)
+	}
+	if len(mains) != 1 || mains[0] != "わかばシューター" {
+		t.Errorf("unexpected main weapons: %v", mains)
+	}
+}
+
+func TestFetchMainWeapons_Error(t *testing.T) {
+	orig := BaseURL
+	BaseURL = "http://127.0.0.1:0/invalid"
+	defer func() { BaseURL = orig }()
+
+	_, err := FetchMainWeapons()
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestExtractStages_NoNavfold(t *testing.T) {
+	// h4 with "ステージ" but next element is not navfold-container
+	html := `<html><body>
+<h4>ステージ</h4>
+<p>not a navfold</p>
+</body></html>`
+
+	stages, err := extractStages(strings.NewReader(html))
+	if err != nil {
+		t.Fatalf("extractStages returned error: %v", err)
+	}
+	if len(stages) != 0 {
+		t.Errorf("expected empty stages, got %v", stages)
+	}
+}
+
+func TestExtractSubWeapons_NoMatch(t *testing.T) {
+	// navfold-container without "サブウェポン" in label
+	html := `<html><body>
+<div class="navfold-container clearfix">
+  <span class="navfold-summary-label">シューター一覧</span>
+  <div class="navfold-content">
+    <ul><li><a href="/w1">わかばシューター</a></li></ul>
+  </div>
+</div>
+</body></html>`
+
+	subs, err := extractSubWeapons(strings.NewReader(html))
+	if err != nil {
+		t.Fatalf("extractSubWeapons returned error: %v", err)
+	}
+	if len(subs) != 0 {
+		t.Errorf("expected empty sub weapons, got %v", subs)
+	}
+}
+
+func TestExtractSpecialWeapons_NoMatch(t *testing.T) {
+	// navfold-container without "スペシャルウェポン" in label
+	html := `<html><body>
+<div class="navfold-container clearfix">
+  <span class="navfold-summary-label">サブウェポン一覧</span>
+  <div class="navfold-content">
+    <ul><li><a href="/sub1">スプラッシュボム</a></li></ul>
+  </div>
+</div>
+</body></html>`
+
+	specials, err := extractSpecialWeapons(strings.NewReader(html))
+	if err != nil {
+		t.Fatalf("extractSpecialWeapons returned error: %v", err)
+	}
+	if len(specials) != 0 {
+		t.Errorf("expected empty special weapons, got %v", specials)
 	}
 }
 
