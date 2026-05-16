@@ -197,94 +197,135 @@ func TestContains(t *testing.T) {
 	}
 }
 
-func TestExtractMainWeaponEntries(t *testing.T) {
-	html := `<html><body>
-<div class="navfold-container clearfix">
-  <span class="navfold-summary-label">シューター</span>
-  <div class="navfold-content">
-    <ul>
-      <li><a href="/splatoon3mix/%E3%83%96%E3%82%AD/%E3%82%8F%E3%81%8B%E3%81%B0%E3%82%B7%E3%83%A5%E3%83%BC%E3%82%BF%E3%83%BC" title="ブキ/わかばシューター">わかばシューター</a></li>
-      <li><a href="/splatoon3mix/%E3%83%96%E3%82%AD/%E3%82%B7%E3%83%A3%E3%83%BC%E3%83%97%E3%83%9E%E3%83%BC%E3%82%AB%E3%83%BC" title="ブキ/シャープマーカー">シャープマーカー</a></li>
-      <li><a href="/ov" title="ブキ/シューター属">シューター属</a></li>
-      <li><a href="/no-title">タイトルなし</a></li>
-    </ul>
-  </div>
-</div>
-</body></html>`
-
-	entries, err := extractMainWeaponEntries(strings.NewReader(html))
-	if err != nil {
-		t.Fatalf("extractMainWeaponEntries returned error: %v", err)
-	}
-
-	if len(entries) != 2 {
-		t.Fatalf("expected 2 entries, got %d: %v", len(entries), entries)
-	}
-	if entries[0].Name != "わかばシューター" {
-		t.Errorf("entries[0].Name: expected %q, got %q", "わかばシューター", entries[0].Name)
-	}
-	if entries[0].Type != "シューター" {
-		t.Errorf("entries[0].Type: expected %q, got %q", "シューター", entries[0].Type)
-	}
-	if entries[1].Name != "シャープマーカー" {
-		t.Errorf("entries[1].Name: expected %q, got %q", "シャープマーカー", entries[1].Name)
-	}
-}
-
-func TestExtractMainWeaponEntries_Empty(t *testing.T) {
-	html := `<html><body><p>no weapons here</p></body></html>`
-
-	entries, err := extractMainWeaponEntries(strings.NewReader(html))
-	if err != nil {
-		t.Fatalf("extractMainWeaponEntries returned error: %v", err)
-	}
-	if len(entries) != 0 {
-		t.Errorf("expected empty entries, got %v", entries)
-	}
-}
-
-func TestExtractWeaponSpec(t *testing.T) {
+func TestExtractCategoryWeaponSpecs(t *testing.T) {
 	html := `<html><body>
 <table>
-  <tr><th>サブウェポン</th><td>スプラッシュボム</td></tr>
-  <tr><th>スペシャルウェポン</th><td>グレートバリア</td></tr>
-  <tr><th>重量区分</th><td>軽量級</td></tr>
-  <tr><th>射程</th><td>中</td></tr>
-  <tr><th>発射レート</th><td>速い</td></tr>
+  <tr>
+    <th>ブキ名</th>
+    <th>サブウェポン</th>
+    <th>スペシャルウェポン</th>
+  </tr>
+  <tr>
+    <td>わかばシューター</td>
+    <td>スプラッシュボム</td>
+    <td>グレートバリア</td>
+  </tr>
+  <tr>
+    <td>シャープマーカー</td>
+    <td>キューバンボム</td>
+    <td>ウルトラショット</td>
+  </tr>
 </table>
 </body></html>`
 
-	spec, err := extractWeaponSpec(strings.NewReader(html))
+	specs, err := extractCategoryWeaponSpecs(strings.NewReader(html), "シューター")
 	if err != nil {
-		t.Fatalf("extractWeaponSpec returned error: %v", err)
+		t.Fatalf("extractCategoryWeaponSpecs returned error: %v", err)
 	}
 
-	if spec.Sub != "スプラッシュボム" {
-		t.Errorf("Sub: expected %q, got %q", "スプラッシュボム", spec.Sub)
+	if len(specs) != 2 {
+		t.Fatalf("expected 2 specs, got %d: %v", len(specs), specs)
 	}
-	if spec.Special != "グレートバリア" {
-		t.Errorf("Special: expected %q, got %q", "グレートバリア", spec.Special)
+	if specs[0].Name != "わかばシューター" {
+		t.Errorf("specs[0].Name: expected %q, got %q", "わかばシューター", specs[0].Name)
 	}
-	if spec.Weight != "軽量級" {
-		t.Errorf("Weight: expected %q, got %q", "軽量級", spec.Weight)
+	if specs[0].Type != "シューター" {
+		t.Errorf("specs[0].Type: expected %q, got %q", "シューター", specs[0].Type)
 	}
-	if spec.Range != "中" {
-		t.Errorf("Range: expected %q, got %q", "中", spec.Range)
+	if specs[0].Sub != "スプラッシュボム" {
+		t.Errorf("specs[0].Sub: expected %q, got %q", "スプラッシュボム", specs[0].Sub)
 	}
-	if spec.FireRate != "速い" {
-		t.Errorf("FireRate: expected %q, got %q", "速い", spec.FireRate)
+	if specs[0].Special != "グレートバリア" {
+		t.Errorf("specs[0].Special: expected %q, got %q", "グレートバリア", specs[0].Special)
+	}
+	if specs[1].Name != "シャープマーカー" {
+		t.Errorf("specs[1].Name: expected %q, got %q", "シャープマーカー", specs[1].Name)
 	}
 }
 
-func TestExtractWeaponSpec_Empty(t *testing.T) {
-	html := `<html><body><p>no specs here</p></body></html>`
+func TestExtractCategoryWeaponSpecs_Empty(t *testing.T) {
+	html := `<html><body><p>no weapons here</p></body></html>`
 
-	spec, err := extractWeaponSpec(strings.NewReader(html))
+	specs, err := extractCategoryWeaponSpecs(strings.NewReader(html), "シューター")
 	if err != nil {
-		t.Fatalf("extractWeaponSpec returned error: %v", err)
+		t.Fatalf("extractCategoryWeaponSpecs returned error: %v", err)
 	}
-	if spec.Sub != "" || spec.Special != "" || spec.Weight != "" || spec.Range != "" || spec.FireRate != "" {
-		t.Errorf("expected empty spec, got %+v", spec)
+	if len(specs) != 0 {
+		t.Errorf("expected empty specs, got %v", specs)
+	}
+}
+
+func TestExtractCategoryWeaponSpecs_NoNameColumn(t *testing.T) {
+	// Table without a "ブキ名" header should be ignored
+	html := `<html><body>
+<table>
+  <tr><th>その他</th><th>メモ</th></tr>
+  <tr><td>foo</td><td>bar</td></tr>
+</table>
+</body></html>`
+
+	specs, err := extractCategoryWeaponSpecs(strings.NewReader(html), "シューター")
+	if err != nil {
+		t.Fatalf("extractCategoryWeaponSpecs returned error: %v", err)
+	}
+	if len(specs) != 0 {
+		t.Errorf("expected empty specs, got %v", specs)
+	}
+}
+
+func TestExtractWeaponPerformance(t *testing.T) {
+	html := `<html><body>
+<table>
+  <tr>
+    <th>ブキ名</th>
+    <th>重量区分</th>
+    <th>射程</th>
+    <th>発射レート</th>
+  </tr>
+  <tr>
+    <td>わかばシューター</td>
+    <td>軽量級</td>
+    <td>中</td>
+    <td>速い</td>
+  </tr>
+  <tr>
+    <td>シャープマーカー</td>
+    <td>軽量級</td>
+    <td>長</td>
+    <td>普通</td>
+  </tr>
+</table>
+</body></html>`
+
+	perf, err := extractWeaponPerformance(strings.NewReader(html))
+	if err != nil {
+		t.Fatalf("extractWeaponPerformance returned error: %v", err)
+	}
+
+	if len(perf) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(perf))
+	}
+	w := perf["わかばシューター"]
+	if w.Weight != "軽量級" {
+		t.Errorf("Weight: expected %q, got %q", "軽量級", w.Weight)
+	}
+	if w.Range != "中" {
+		t.Errorf("Range: expected %q, got %q", "中", w.Range)
+	}
+	if w.FireRate != "速い" {
+		t.Errorf("FireRate: expected %q, got %q", "速い", w.FireRate)
+	}
+}
+
+func TestExtractWeaponPerformance_Empty(t *testing.T) {
+	html := `<html><body><p>no data here</p></body></html>`
+
+	perf, err := extractWeaponPerformance(strings.NewReader(html))
+	if err != nil {
+		t.Fatalf("extractWeaponPerformance returned error: %v", err)
+	}
+	if len(perf) != 0 {
+		t.Errorf("expected empty map, got %v", perf)
 	}
 }
 

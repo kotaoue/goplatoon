@@ -9,8 +9,27 @@ import (
 )
 
 const (
-	WikiBaseURL = "https://wikiwiki.jp"
+	WikiBaseURL    = "https://wikiwiki.jp"
+	weaponPerfPath = "ブキ/ブキ性能"
 )
+
+// weaponTypeCategories lists each weapon type and its wiki category page path.
+var weaponTypeCategories = []struct {
+	Type string
+	Path string
+}{
+	{"シューター", "ブキ/シューター属"},
+	{"ローラー", "ブキ/ローラー属"},
+	{"チャージャー", "ブキ/チャージャー属"},
+	{"スロッシャー", "ブキ/スロッシャー属"},
+	{"スピナー", "ブキ/スピナー属"},
+	{"マニューバー", "ブキ/マニューバー属"},
+	{"シェルター", "ブキ/シェルター属"},
+	{"ブラスター", "ブキ/ブラスター属"},
+	{"フデ", "ブキ/フデ属"},
+	{"ストリンガー", "ブキ/ストリンガー属"},
+	{"ワイパー", "ブキ/ワイパー属"},
+}
 
 // WeaponSpec holds detailed specifications of a main weapon.
 type WeaponSpec struct {
@@ -28,39 +47,44 @@ func (s WeaponSpec) String() string {
 		s.Name, s.Type, s.Sub, s.Special, s.Weight, s.Range, s.FireRate)
 }
 
-type weaponEntry struct {
-	Name string
-	Type string
-	HRef string
-}
-
 // FetchMainWeaponSpecs fetches detailed specifications for all main weapons.
+// Sub/special are read from per-type category pages (e.g. ブキ/シューター属);
+// weight, range, and fire-rate are read from the single performance page (ブキ/ブキ性能).
 func FetchMainWeaponSpecs() ([]WeaponSpec, error) {
-	body, err := Fetch(BaseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	entries, err := extractMainWeaponEntries(body)
-	if err != nil {
-		return nil, err
-	}
-
 	var specs []WeaponSpec
-	for _, entry := range entries {
-		weaponURL := buildWeaponURL(entry.HRef)
-		wbody, err := Fetch(weaponURL)
+	nameIndex := make(map[string]int)
+
+	for _, cat := range weaponTypeCategories {
+		body, err := Fetch(BaseURL + cat.Path)
 		if err != nil {
 			continue
 		}
-		spec, err := extractWeaponSpec(wbody)
+		catSpecs, err := extractCategoryWeaponSpecs(body, cat.Type)
 		if err != nil {
 			continue
 		}
-		spec.Name = entry.Name
-		spec.Type = entry.Type
-		specs = append(specs, spec)
+		for _, s := range catSpecs {
+			if _, exists := nameIndex[s.Name]; !exists {
+				nameIndex[s.Name] = len(specs)
+				specs = append(specs, s)
+			}
+		}
 	}
+
+	body, err := Fetch(BaseURL + weaponPerfPath)
+	if err == nil {
+		perfMap, err := extractWeaponPerformance(body)
+		if err == nil {
+			for name, perf := range perfMap {
+				if idx, ok := nameIndex[name]; ok {
+					specs[idx].Weight = perf.Weight
+					specs[idx].Range = perf.Range
+					specs[idx].FireRate = perf.FireRate
+				}
+			}
+		}
+	}
+
 	return specs, nil
 }
 
@@ -74,66 +98,131 @@ func buildWeaponURL(href string) string {
 	return BaseURL + href
 }
 
-func extractMainWeaponEntries(reader io.Reader) ([]weaponEntry, error) {
+// extractCategoryWeaponSpecs parses a weapon category page (e.g. シューター属) and
+// returns specs with Name, Type, Sub, and Special populated from the main weapon table.
+func extractCategoryWeaponSpecs(reader io.Reader, weaponType string) ([]WeaponSpec, error) {
 	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		return nil, err
 	}
 
-	var entries []weaponEntry
-	weaponTypes := []string{"シューター", "ローラー", "チャージャー", "スロッシャー", "スピナー", "マニューバー", "シェルター", "ブラスター", "フデ", "ストリンガー", "ワイパー"}
+	var specs []WeaponSpec
 
-	doc.Find("div.navfold-container.clearfix").Each(func(i int, s *goquery.Selection) {
-		label := s.Find("span.navfold-summary-label").Text()
+	doc.Find("table").EachWithBreak(func(_ int, table *goquery.Selection) bool {
+		headers := tableHeaders(table)
+		nameIdx := sliceIndexOf(headers, "ブキ名")
+		subIdx := sliceIndexOfContains(headers, "サブウェポン")
+		spIdx := sliceIndexOfContains(headers, "スペシャルウェポン")
 
-		for _, weaponType := range weaponTypes {
-			if strings.Contains(label, weaponType) {
-				s.Find("div.navfold-content li a").Each(func(j int, a *goquery.Selection) {
-					title, exists := a.Attr("title")
-					if exists && strings.HasPrefix(title, "ブキ/") {
-						weaponName := strings.TrimPrefix(title, "ブキ/")
-						if !strings.HasSuffix(weaponName, "属") {
-							href, _ := a.Attr("href")
-							entries = append(entries, weaponEntry{
-								Name: weaponName,
-								Type: weaponType,
-								HRef: href,
-							})
-						}
-					}
-				})
-				break
-			}
+		if nameIdx < 0 {
+			return true // not a weapon table; try next
 		}
+
+		table.Find("tr").Each(func(k int, row *goquery.Selection) {
+			if k == 0 {
+				return // skip header row
+			}
+			cells := row.Find("td")
+			if cells.Length() <= nameIdx {
+				return
+			}
+			name := strings.TrimSpace(cells.Eq(nameIdx).Text())
+			if name == "" {
+				return
+			}
+			spec := WeaponSpec{Name: name, Type: weaponType}
+			if subIdx >= 0 && cells.Length() > subIdx {
+				spec.Sub = strings.TrimSpace(cells.Eq(subIdx).Text())
+			}
+			if spIdx >= 0 && cells.Length() > spIdx {
+				spec.Special = strings.TrimSpace(cells.Eq(spIdx).Text())
+			}
+			specs = append(specs, spec)
+		})
+
+		return false // stop at first matching table
 	})
-	return entries, nil
+
+	return specs, nil
 }
 
-func extractWeaponSpec(reader io.Reader) (WeaponSpec, error) {
+// extractWeaponPerformance parses the ブキ性能 page and returns a map of
+// weapon name → partial WeaponSpec containing Weight, Range, and FireRate.
+func extractWeaponPerformance(reader io.Reader) (map[string]WeaponSpec, error) {
 	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
-		return WeaponSpec{}, err
+		return nil, err
 	}
 
-	spec := WeaponSpec{}
+	result := make(map[string]WeaponSpec)
 
-	doc.Find("table tr").Each(func(i int, row *goquery.Selection) {
-		th := strings.TrimSpace(row.Find("th").Text())
-		td := strings.TrimSpace(row.Find("td").First().Text())
+	doc.Find("table").EachWithBreak(func(_ int, table *goquery.Selection) bool {
+		headers := tableHeaders(table)
+		nameIdx := sliceIndexOf(headers, "ブキ名")
+		weightIdx := sliceIndexOfContains(headers, "重量区分")
+		rangeIdx := sliceIndexOfContains(headers, "射程")
+		rateIdx := sliceIndexOfContains(headers, "発射レート")
 
-		switch {
-		case strings.Contains(th, "サブウェポン"):
-			spec.Sub = td
-		case strings.Contains(th, "スペシャルウェポン"):
-			spec.Special = td
-		case strings.Contains(th, "重量区分"):
-			spec.Weight = td
-		case strings.Contains(th, "射程"):
-			spec.Range = td
-		case strings.Contains(th, "発射レート"):
-			spec.FireRate = td
+		if nameIdx < 0 || (weightIdx < 0 && rangeIdx < 0 && rateIdx < 0) {
+			return true // not the performance table; try next
 		}
+
+		table.Find("tr").Each(func(k int, row *goquery.Selection) {
+			if k == 0 {
+				return // skip header row
+			}
+			cells := row.Find("td")
+			if cells.Length() <= nameIdx {
+				return
+			}
+			name := strings.TrimSpace(cells.Eq(nameIdx).Text())
+			if name == "" {
+				return
+			}
+			spec := WeaponSpec{}
+			if weightIdx >= 0 && cells.Length() > weightIdx {
+				spec.Weight = strings.TrimSpace(cells.Eq(weightIdx).Text())
+			}
+			if rangeIdx >= 0 && cells.Length() > rangeIdx {
+				spec.Range = strings.TrimSpace(cells.Eq(rangeIdx).Text())
+			}
+			if rateIdx >= 0 && cells.Length() > rateIdx {
+				spec.FireRate = strings.TrimSpace(cells.Eq(rateIdx).Text())
+			}
+			result[name] = spec
+		})
+
+		return false // stop at first matching table
 	})
 
-	return spec, nil
+	return result, nil
+}
+
+// tableHeaders returns the trimmed text of all th cells in the first row of a table.
+func tableHeaders(table *goquery.Selection) []string {
+	var headers []string
+	table.Find("tr").First().Find("th").Each(func(_ int, th *goquery.Selection) {
+		headers = append(headers, strings.TrimSpace(th.Text()))
+	})
+	return headers
+}
+
+// sliceIndexOf returns the index of the first element equal to target, or -1.
+func sliceIndexOf(slice []string, target string) int {
+	for i, s := range slice {
+		if s == target {
+			return i
+		}
+	}
+	return -1
+}
+
+// sliceIndexOfContains returns the index of the first element containing target, or -1.
+func sliceIndexOfContains(slice []string, target string) int {
+	for i, s := range slice {
+		if strings.Contains(s, target) {
+			return i
+		}
+	}
+	return -1
 }
