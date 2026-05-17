@@ -450,3 +450,174 @@ func TestExtractSpecialWeapons_NoMatch(t *testing.T) {
 		t.Errorf("expected empty special weapons, got %v", specials)
 	}
 }
+
+func TestExtractCategoryWeaponSpecs(t *testing.T) {
+html := `<html><body>
+<table>
+  <tr>
+    <th>ブキ名</th>
+    <th>サブウェポン</th>
+    <th>スペシャルウェポン</th>
+  </tr>
+  <tr>
+    <td>わかばシューター</td>
+    <td>スプラッシュボム</td>
+    <td>グレートバリア</td>
+  </tr>
+  <tr>
+    <td>シャープマーカー</td>
+    <td>キューバンボム</td>
+    <td>ウルトラショット</td>
+  </tr>
+</table>
+</body></html>`
+
+specs, err := extractCategoryWeaponSpecs(strings.NewReader(html), "シューター")
+if err != nil {
+t.Fatalf("extractCategoryWeaponSpecs returned error: %v", err)
+}
+
+if len(specs) != 2 {
+t.Fatalf("expected 2 specs, got %d: %v", len(specs), specs)
+}
+if specs[0].Name != "わかばシューター" {
+t.Errorf("specs[0].Name: expected %q, got %q", "わかばシューター", specs[0].Name)
+}
+if specs[0].Type != "シューター" {
+t.Errorf("specs[0].Type: expected %q, got %q", "シューター", specs[0].Type)
+}
+if specs[0].Sub != "スプラッシュボム" {
+t.Errorf("specs[0].Sub: expected %q, got %q", "スプラッシュボム", specs[0].Sub)
+}
+if specs[0].Special != "グレートバリア" {
+t.Errorf("specs[0].Special: expected %q, got %q", "グレートバリア", specs[0].Special)
+}
+if specs[1].Name != "シャープマーカー" {
+t.Errorf("specs[1].Name: expected %q, got %q", "シャープマーカー", specs[1].Name)
+}
+}
+
+func TestExtractCategoryWeaponSpecs_Empty(t *testing.T) {
+html := `<html><body><p>no weapons here</p></body></html>`
+
+specs, err := extractCategoryWeaponSpecs(strings.NewReader(html), "シューター")
+if err != nil {
+t.Fatalf("extractCategoryWeaponSpecs returned error: %v", err)
+}
+if len(specs) != 0 {
+t.Errorf("expected empty specs, got %v", specs)
+}
+}
+
+func TestExtractCategoryWeaponSpecs_NoNameColumn(t *testing.T) {
+// Table without a "ブキ名" header should be ignored
+html := `<html><body>
+<table>
+  <tr><th>その他</th><th>メモ</th></tr>
+  <tr><td>foo</td><td>bar</td></tr>
+</table>
+</body></html>`
+
+specs, err := extractCategoryWeaponSpecs(strings.NewReader(html), "シューター")
+if err != nil {
+t.Fatalf("extractCategoryWeaponSpecs returned error: %v", err)
+}
+if len(specs) != 0 {
+t.Errorf("expected empty specs, got %v", specs)
+}
+}
+
+func TestExtractWeaponPerformance(t *testing.T) {
+html := `<html><body>
+<table>
+  <tr>
+    <th>ブキ名</th>
+    <th>重量区分</th>
+    <th>射程</th>
+    <th>発射レート</th>
+  </tr>
+  <tr>
+    <td>わかばシューター</td>
+    <td>軽量級</td>
+    <td>中</td>
+    <td>速い</td>
+  </tr>
+  <tr>
+    <td>シャープマーカー</td>
+    <td>軽量級</td>
+    <td>長</td>
+    <td>普通</td>
+  </tr>
+</table>
+</body></html>`
+
+perf, err := extractWeaponPerformance(strings.NewReader(html))
+if err != nil {
+t.Fatalf("extractWeaponPerformance returned error: %v", err)
+}
+
+if len(perf) != 2 {
+t.Fatalf("expected 2 entries, got %d", len(perf))
+}
+w := perf["わかばシューター"]
+if w.Weight != "軽量級" {
+t.Errorf("Weight: expected %q, got %q", "軽量級", w.Weight)
+}
+if w.Range != "中" {
+t.Errorf("Range: expected %q, got %q", "中", w.Range)
+}
+if w.FireRate != "速い" {
+t.Errorf("FireRate: expected %q, got %q", "速い", w.FireRate)
+}
+}
+
+func TestExtractWeaponPerformance_Empty(t *testing.T) {
+html := `<html><body><p>no data here</p></body></html>`
+
+perf, err := extractWeaponPerformance(strings.NewReader(html))
+if err != nil {
+t.Fatalf("extractWeaponPerformance returned error: %v", err)
+}
+if len(perf) != 0 {
+t.Errorf("expected empty map, got %v", perf)
+}
+}
+
+func TestWeaponSpecString(t *testing.T) {
+spec := WeaponSpec{
+Name:     "わかばシューター",
+Type:     "シューター",
+Sub:      "スプラッシュボム",
+Special:  "グレートバリア",
+Weight:   "軽量級",
+Range:    "中",
+FireRate: "速い",
+}
+got := spec.String()
+if !strings.Contains(got, "わかばシューター") {
+t.Errorf("String() missing Name: %q", got)
+}
+if !strings.Contains(got, "シューター") {
+t.Errorf("String() missing Type: %q", got)
+}
+if !strings.Contains(got, "軽量級") {
+t.Errorf("String() missing Weight: %q", got)
+}
+}
+
+func TestBuildWeaponURL(t *testing.T) {
+tests := []struct {
+href string
+want string
+}{
+{"https://example.com/weapon", "https://example.com/weapon"},
+{"/splatoon3mix/weapon", "https://wikiwiki.jp/splatoon3mix/weapon"},
+{"weapon", BaseURL + "weapon"},
+}
+for _, tt := range tests {
+got := buildWeaponURL(tt.href)
+if got != tt.want {
+t.Errorf("buildWeaponURL(%q) = %q, want %q", tt.href, got, tt.want)
+}
+}
+}
